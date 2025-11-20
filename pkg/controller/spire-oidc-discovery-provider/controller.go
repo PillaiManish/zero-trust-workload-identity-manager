@@ -174,11 +174,11 @@ func (r *SpireOidcDiscoveryProviderReconciler) SetupWithManager(mgr ctrl.Manager
 
 // handleCreateOnlyMode checks and updates the create-only mode status
 func (r *SpireOidcDiscoveryProviderReconciler) handleCreateOnlyMode(oidc *v1alpha1.SpireOIDCDiscoveryProvider, statusMgr *status.Manager) bool {
-	createOnlyMode := utils.IsInCreateOnlyMode(oidc, &r.createOnlyMode)
+	createOnlyMode := utils.IsInCreateOnlyMode(&r.createOnlyMode)
 	if createOnlyMode {
 		r.log.Info("Running in create-only mode - will create resources if they don't exist but skip updates")
 		statusMgr.AddCondition(utils.CreateOnlyModeStatusType, utils.CreateOnlyModeEnabled,
-			"Create-only mode is enabled via ztwim.openshift.io/create-only annotation",
+			"Create-Only Mode is active: Manual updates are not reconciled, though any deletion of a managed resource will result in automatic recreation",
 			metav1.ConditionTrue)
 	} else {
 		existingCondition := apimeta.FindStatusCondition(oidc.Status.ConditionalStatus.Conditions, utils.CreateOnlyModeStatusType)

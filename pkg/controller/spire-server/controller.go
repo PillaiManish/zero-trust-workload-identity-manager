@@ -202,11 +202,11 @@ func (r *SpireServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // handleCreateOnlyMode checks and updates the create-only mode status
 func (r *SpireServerReconciler) handleCreateOnlyMode(server *v1alpha1.SpireServer, statusMgr *status.Manager) bool {
-	createOnlyMode := utils.IsInCreateOnlyMode(server, &r.createOnlyMode)
+	createOnlyMode := utils.IsInCreateOnlyMode(&r.createOnlyMode)
 	if createOnlyMode {
 		r.log.Info("Running in create-only mode - will create resources if they don't exist but skip updates")
 		statusMgr.AddCondition(utils.CreateOnlyModeStatusType, utils.CreateOnlyModeEnabled,
-			"Create-only mode is enabled via ztwim.openshift.io/create-only annotation",
+			"Create-Only Mode is active: Manual updates are not reconciled, though any deletion of a managed resource will result in automatic recreation",
 			metav1.ConditionTrue)
 	} else {
 		existingCondition := apimeta.FindStatusCondition(server.Status.ConditionalStatus.Conditions, utils.CreateOnlyModeStatusType)
