@@ -134,7 +134,7 @@ func (r *SpireOidcDiscoveryProviderReconciler) Reconcile(ctx context.Context, re
 	}
 
 	// Reconcile Route (if enabled)
-	if err := r.reconcileRoute(ctx, &oidcDiscoveryProviderConfig, statusMgr); err != nil {
+	if err := r.reconcileRoute(ctx, &oidcDiscoveryProviderConfig, statusMgr, createOnlyMode); err != nil {
 		return ctrl.Result{}, err
 	}
 
