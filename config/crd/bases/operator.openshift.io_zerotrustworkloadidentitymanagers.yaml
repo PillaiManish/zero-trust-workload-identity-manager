@@ -973,7 +973,10 @@ spec:
               labels:
                 additionalProperties:
                   type: string
-                description: labels to apply to all resources managed by the API.
+                description: |-
+                  labels to apply to all resources managed by the API.
+                  Maximum 64 labels allowed. Label keys and values must be valid Kubernetes labels.
+                maxProperties: 64
                 type: object
                 x-kubernetes-map-type: granular
               namespace:
@@ -981,13 +984,18 @@ spec:
                 description: |-
                   namespace to install the deployments and other resources managed by
                   zero-trust-workload-identity-manager.
+                  Must be a valid Kubernetes namespace name (DNS-1123 subdomain).
+                maxLength: 63
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
               nodeSelector:
                 additionalProperties:
                   type: string
                 description: |-
                   nodeSelector is for defining the scheduling criteria using node labels.
+                  Maximum 16 node selectors allowed.
                   ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+                maxProperties: 16
                 type: object
                 x-kubernetes-map-type: atomic
               resources:
@@ -1054,6 +1062,7 @@ spec:
               tolerations:
                 description: |-
                   tolerations are for setting the pod tolerations.
+                  Maximum 16 tolerations allowed.
                   ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
                 items:
                   description: |-
@@ -1091,6 +1100,7 @@ spec:
                         If the operator is Exists, the value should be empty, otherwise just a regular string.
                       type: string
                   type: object
+                maxItems: 16
                 type: array
                 x-kubernetes-list-type: atomic
             type: object

@@ -114,7 +114,10 @@ type ZeroTrustWorkloadIdentityManagerList struct {
 type ZeroTrustWorkloadIdentityManagerSpec struct {
 	// namespace to install the deployments and other resources managed by
 	// zero-trust-workload-identity-manager.
+	// Must be a valid Kubernetes namespace name (DNS-1123 subdomain).
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	// +kubebuilder:default:="zero-trust-workload-identity-manager"
 	Namespace string `json:"namespace,omitempty"`
 
@@ -125,8 +128,10 @@ type ZeroTrustWorkloadIdentityManagerSpec struct {
 type CommonConfig struct {
 
 	// labels to apply to all resources managed by the API.
+	// Maximum 64 labels allowed. Label keys and values must be valid Kubernetes labels.
 	// +mapType=granular
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxProperties=64
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// resources are for defining the resource requirements.
@@ -140,14 +145,18 @@ type CommonConfig struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
 	// tolerations are for setting the pod tolerations.
+	// Maximum 16 tolerations allowed.
 	// ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxItems=16
 	// +listType=atomic
 	Tolerations []*corev1.Toleration `json:"tolerations,omitempty"`
 
 	// nodeSelector is for defining the scheduling criteria using node labels.
+	// Maximum 16 node selectors allowed.
 	// ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxProperties=16
 	// +mapType=atomic
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
