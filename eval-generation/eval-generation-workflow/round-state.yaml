@@ -1,0 +1,52 @@
+round: 1
+date: "2026-08-17"
+status: completed
+pipeline_stage: eval-generation
+inputs_consumed:
+  - eval-generation/eval-generation-workflow/outputs/epic-bug-analysis/pattern-analysis.md
+  - eval-generation/eval-generation-workflow/outputs/epic-bug-analysis/rca-summary.md
+  - eval-generation/eval-generation-workflow/outputs/epic-bug-analysis/issue-taxonomy.json
+outputs_produced:
+  gap_reports:
+    - eval-generation/eval-generation-workflow/template-gaps/repo-assessment-gaps.md
+    - eval-generation/eval-generation-workflow/template-gaps/plan-gaps.md
+    - eval-generation/eval-generation-workflow/template-gaps/tasks-gaps.md
+    - eval-generation/eval-generation-workflow/template-gaps/validation-gaps.md
+    - eval-generation/eval-generation-workflow/template-gaps/spec-gaps.md
+    - eval-generation/eval-generation-workflow/template-gaps/agents-gaps.md
+  eval_cases:
+    - eval-generation/output-evals/repo-assessment/repo-assessment_eval.yaml
+    - eval-generation/output-evals/plan/plan_eval.yaml
+    - eval-generation/output-evals/tasks/tasks_eval.yaml
+    - eval-generation/output-evals/code-generation/code-generation_eval.yaml
+  refined_templates:
+    - eval-generation/output-refined-templates/repo-assessment-template.md
+    - eval-generation/output-refined-templates/plan-template.md
+    - eval-generation/output-refined-templates/tasks-template.md
+    - eval-generation/output-refined-templates/validation-template.md
+    - eval-generation/output-refined-templates/spec-template.md
+  patches:
+    - eval-generation/eval-generation-workflow/outputs/eval-generation/patches/round-1-patches.md
+  synced_to_openspec:
+    - openspec/schemas/openspec-agile-workflow/evals/repo-assessment_eval.yaml
+    - openspec/schemas/openspec-agile-workflow/evals/plan_eval.yaml
+    - openspec/schemas/openspec-agile-workflow/evals/tasks_eval.yaml
+    - openspec/schemas/openspec-agile-workflow/evals/code-generation_eval.yaml
+metrics:
+  total_gaps_identified: 22
+  patchable_gaps: 14
+  eval_only_gaps: 6
+  deferred_gaps: 2
+  total_eval_cases: 24
+  evals_per_stage:
+    repo-assessment: 5
+    plan: 5
+    tasks: 5
+    code-generation: 9
+  pattern_groups_covered:
+    - operand-security-configuration
+    - multi-arch-support
+    - reconciliation-safety
+    - operand-configuration
+  templates_refined: 5
+  patches_applied: 6

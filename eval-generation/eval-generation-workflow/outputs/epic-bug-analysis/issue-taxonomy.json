@@ -1,0 +1,313 @@
+{
+  "metadata": {
+    "round": 1,
+    "date": "2026-08-17",
+    "total_raw_bugs": 24,
+    "deduplicated_bugs": 18,
+    "ztwim_specific_bugs": 3,
+    "pr_derived_issues": 4,
+    "filtered_non_ztwim": 15
+  },
+  "issues": [
+    {
+      "key": "SPIRE-578",
+      "summary": "Spire-agent pods lack supplemental GID despite SCC MustRunAs and namespace range",
+      "stage_that_should_catch": "repo-assessment",
+      "secondary_stage": "implementation",
+      "failure_class": "security-constraint-gap",
+      "severity": "high",
+      "pattern_group": "operand-security-configuration",
+      "gap_type": ["knowledge", "test"],
+      "ztwim_specific": true,
+      "duplicates_in_data": 7,
+      "related_prs": ["#105", "#139", "#142"],
+      "eval_candidates": [
+        "Verify repo-assessment identifies SCC-to-SecurityContext mapping requirements",
+        "Verify implementation includes supplementalGroups in pod spec when SCC uses MustRunAs",
+        "Verify e2e tests assert actual UID/GID of running containers"
+      ]
+    },
+    {
+      "key": "OCPBUGS-105599",
+      "summary": "SPIFFE CSI Driver Pods Stuck in CrashLoopBackOff on ARM/Non-x86 Clusters",
+      "stage_that_should_catch": "repo-assessment",
+      "secondary_stage": "tasks",
+      "failure_class": "architecture-support-gap",
+      "severity": "critical",
+      "pattern_group": "multi-arch-support",
+      "gap_type": ["process", "tool"],
+      "ztwim_specific": true,
+      "duplicates_in_data": 1,
+      "related_prs": ["#103", "#116", "#128"],
+      "eval_candidates": [
+        "Verify repo-assessment enumerates all container image references and their architecture support",
+        "Verify tasks include multi-arch manifest validation gate",
+        "Verify CI includes at least one non-x86 architecture test"
+      ]
+    },
+    {
+      "key": "OCPBUGS-100146",
+      "summary": "restricted-v3 SCC is unusable — hardcoded supplementalGroups range conflicts with OpenShift namespace allocation",
+      "stage_that_should_catch": "repo-assessment",
+      "secondary_stage": null,
+      "failure_class": "platform-compatibility-gap",
+      "severity": "medium",
+      "pattern_group": "operand-security-configuration",
+      "gap_type": ["knowledge"],
+      "ztwim_specific": true,
+      "duplicates_in_data": 1,
+      "related_prs": ["#105", "#139"],
+      "eval_candidates": [
+        "Verify repo-assessment tracks platform SCC evolution and impact on operand security",
+        "Verify plan accounts for forward-compatibility with new OCP security defaults"
+      ]
+    },
+    {
+      "key": "SPIRE-506",
+      "summary": "Stale ResourceVersion race condition causing 409 Conflicts",
+      "stage_that_should_catch": "plan",
+      "secondary_stage": null,
+      "failure_class": "reconciliation-race-condition",
+      "severity": "medium",
+      "pattern_group": "reconciliation-safety",
+      "gap_type": ["knowledge"],
+      "ztwim_specific": true,
+      "duplicates_in_data": 1,
+      "source": "pr-derived",
+      "related_prs": ["#121"],
+      "eval_candidates": [
+        "Verify plan evaluates conflict handling strategy for read-modify-write operations",
+        "Verify implementation uses controller-runtime built-in conflict resolution"
+      ]
+    },
+    {
+      "key": "SPIRE-248",
+      "summary": "Broken update logic for StatefulSet, Deployment, and DaemonSet operands",
+      "stage_that_should_catch": "plan",
+      "secondary_stage": "implementation",
+      "failure_class": "reconciliation-update-failure",
+      "severity": "high",
+      "pattern_group": "reconciliation-safety",
+      "gap_type": ["process"],
+      "ztwim_specific": true,
+      "duplicates_in_data": 1,
+      "source": "pr-derived",
+      "related_prs": ["#75"],
+      "eval_candidates": [
+        "Verify plan specifies update strategy for each workload type",
+        "Verify implementation handles rolling updates for StatefulSet, DaemonSet, Deployment"
+      ]
+    },
+    {
+      "key": "SPIRE-225",
+      "summary": "OIDC discovery provider not restarting after ConfigMap changes via CR",
+      "stage_that_should_catch": "implementation",
+      "secondary_stage": null,
+      "failure_class": "operand-config-propagation-failure",
+      "severity": "medium",
+      "pattern_group": "operand-configuration",
+      "gap_type": ["knowledge"],
+      "ztwim_specific": true,
+      "duplicates_in_data": 1,
+      "source": "pr-derived",
+      "related_prs": ["#47"],
+      "eval_candidates": [
+        "Verify implementation uses configmap hash annotation pattern for pod restart on config change",
+        "Verify e2e tests verify operand restart after CR configuration update"
+      ]
+    },
+    {
+      "key": "SPIRE-215",
+      "summary": "Excessive RBAC permissions in operator ClusterRole",
+      "stage_that_should_catch": "repo-assessment",
+      "secondary_stage": null,
+      "failure_class": "security-constraint-gap",
+      "severity": "high",
+      "pattern_group": "operand-security-configuration",
+      "gap_type": ["process"],
+      "ztwim_specific": true,
+      "duplicates_in_data": 1,
+      "source": "pr-derived",
+      "related_prs": ["#92"],
+      "eval_candidates": [
+        "Verify repo-assessment audits RBAC permissions against minimum-privilege principle",
+        "Verify generated RBAC uses specific verbs instead of wildcards"
+      ]
+    }
+  ],
+  "filtered_non_ztwim_issues": [
+    {
+      "key": "OCPBUGS-111081",
+      "summary": "Installed Operators page catalogsources forbidden",
+      "reason": "OCP Console RBAC — general platform issue, not ZTWIM-specific"
+    },
+    {
+      "key": "OCPBUGS-111077",
+      "summary": "RHACM observability thanos query TargetDown",
+      "reason": "RHACM observability — different component entirely"
+    },
+    {
+      "key": "OCPBUGS-105551",
+      "summary": "CI Job of OCP 4.14 fails IPI e2e fips upgrade",
+      "reason": "General OCP CI — platform-level CI failure"
+    },
+    {
+      "key": "OCPBUGS-105449",
+      "summary": "GCP installer deprecated WIF functions",
+      "reason": "GCP installer — different component"
+    },
+    {
+      "key": "OCPBUGS-104597",
+      "summary": "HCPEtcdBackup Azure credential misclassification",
+      "reason": "HyperShift etcd backup — different component"
+    },
+    {
+      "key": "OCPBUGS-104492",
+      "summary": "CPO AzurePrivateLinkService finalizer race",
+      "reason": "Control Plane Operator Azure — different component"
+    },
+    {
+      "key": "OCPBUGS-100392",
+      "summary": "CPU Partitioning test failure from debug namespaces",
+      "reason": "General OCP test — CPU partitioning, not ZTWIM"
+    },
+    {
+      "key": "OCPBUGS-100279",
+      "summary": "GitHub Actions reusable-claude-on-pr untrusted checkout",
+      "reason": "HyperShift CI workflow security — different repo"
+    },
+    {
+      "key": "OCPBUGS-100054",
+      "summary": "Azure Private clusters publicZone DNS 403",
+      "reason": "Azure DNS/ingress — platform networking issue"
+    },
+    {
+      "key": "OCPBUGS-99831",
+      "summary": "ccoctl azure nil pointer in role assignment",
+      "reason": "Cloud Credential Operator tool — different component"
+    },
+    {
+      "key": "OCPBUGS-99806",
+      "summary": "Cloud credential operator reconciliation loop",
+      "reason": "Cloud Credential Operator — different component"
+    },
+    {
+      "key": "OCPBUGS-99495",
+      "summary": "Released VF promiscuity BFD flaps",
+      "reason": "SRIOV networking — completely unrelated to ZTWIM"
+    },
+    {
+      "key": "OCPBUGS-98576",
+      "summary": "Worker nodes intermittently NotReady metal+techpreview",
+      "reason": "General OCP stability — platform issue"
+    },
+    {
+      "key": "OCPBUGS-98446",
+      "summary": "HCP Azure documentation corrections",
+      "reason": "HyperShift Azure docs — different component"
+    },
+    {
+      "key": "OCPBUGS-98208",
+      "summary": "OCP 4.22 HCP Azure documentation incorrect commands",
+      "reason": "HyperShift Azure docs — different component"
+    },
+    {
+      "key": "OCPBUGS-96714",
+      "summary": "ACR credential provider managed identity on Azure WI clusters",
+      "reason": "Azure ARO kubelet credential provider — different component"
+    },
+    {
+      "key": "OCPBUGS-96581",
+      "summary": "KubeCPUOvercommit Prometheus test failure on compact clusters",
+      "reason": "Monitoring alert test — general OCP"
+    },
+    {
+      "key": "OCPBUGS-95586",
+      "summary": "Console blocking validation for WI/FI clusters during operator install",
+      "reason": "OCP Console UX — console team issue, not ZTWIM operator"
+    }
+  ],
+  "pattern_groups": {
+    "operand-security-configuration": {
+      "description": "Issues related to SCC, RBAC, SecurityContext, and privilege configuration for ZTWIM operands",
+      "issue_count": 4,
+      "issues": ["SPIRE-578", "OCPBUGS-100146", "SPIRE-215"],
+      "primary_stage": "repo-assessment",
+      "dominant_gap_type": "knowledge",
+      "eval_focus": "Security constraint completeness — verify all operand security requirements (SCC, UID/GID, capabilities, RBAC) are identified during assessment"
+    },
+    "multi-arch-support": {
+      "description": "Issues related to multi-architecture (ARM, s390x, ppc64le) support for ZTWIM operand images",
+      "issue_count": 1,
+      "issues": ["OCPBUGS-105599"],
+      "primary_stage": "repo-assessment",
+      "dominant_gap_type": "process",
+      "eval_focus": "Architecture support matrix — verify all container image references are validated for multi-arch availability"
+    },
+    "reconciliation-safety": {
+      "description": "Issues related to controller reconciliation logic — race conditions, stale state, update failures",
+      "issue_count": 2,
+      "issues": ["SPIRE-506", "SPIRE-248"],
+      "primary_stage": "plan",
+      "dominant_gap_type": "knowledge",
+      "eval_focus": "Reconciliation strategy — verify plans include conflict handling, idempotency, and workload-type-specific update strategies"
+    },
+    "operand-configuration": {
+      "description": "Issues related to operand configuration propagation, ConfigMap management, and CR-to-operand synchronization",
+      "issue_count": 1,
+      "issues": ["SPIRE-225"],
+      "primary_stage": "implementation",
+      "dominant_gap_type": "knowledge",
+      "eval_focus": "Configuration propagation — verify implementation uses standard patterns (configmap hash annotations) for config change detection"
+    }
+  },
+  "stage_distribution": {
+    "repo-assessment": {
+      "count": 4,
+      "percentage": 57,
+      "issues": ["SPIRE-578", "OCPBUGS-105599", "OCPBUGS-100146", "SPIRE-215"],
+      "insight": "Majority of bugs originate from incomplete initial assessment — security constraints, architecture requirements, and RBAC audit gaps"
+    },
+    "plan": {
+      "count": 2,
+      "percentage": 29,
+      "issues": ["SPIRE-506", "SPIRE-248"],
+      "insight": "Reconciliation strategy and update logic not adequately specified in design phase"
+    },
+    "tasks": {
+      "count": 1,
+      "percentage": 14,
+      "issues": ["OCPBUGS-105599"],
+      "insight": "Task decomposition missing multi-arch validation as a gating criterion"
+    },
+    "implementation": {
+      "count": 3,
+      "percentage": 43,
+      "issues": ["SPIRE-578", "SPIRE-225", "SPIRE-365"],
+      "insight": "Implementation errors in security context configuration and config propagation patterns"
+    },
+    "code-generation": {
+      "count": 0,
+      "percentage": 0,
+      "issues": [],
+      "insight": "No bugs attributed to code generation tooling"
+    }
+  },
+  "gap_type_distribution": {
+    "knowledge": {
+      "count": 4,
+      "percentage": 57,
+      "description": "Missing domain expertise about OpenShift SCC semantics, multi-arch requirements, or controller-runtime patterns"
+    },
+    "process": {
+      "count": 3,
+      "percentage": 43,
+      "description": "Missing workflow steps — security audits, architecture validation, RBAC review"
+    },
+    "tool": {
+      "count": 2,
+      "percentage": 29,
+      "description": "Missing automated checks — multi-arch manifest validation, SCC compliance scanning"
+    }
+  }
+}
