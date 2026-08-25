@@ -61,6 +61,7 @@ evals:
     assertions:
       - "Tasks modifying operand configuration must include acceptance criteria for configuration propagation verification"
       - "Acceptance criteria must verify operand pods detect and apply configuration changes (restart or reload)"
-      - "Standard Kubernetes patterns for config change detection (configmap hash annotations) must be referenced in implementation notes"
+      - "If the task uses restart-based propagation, implementation notes must specify a deterministic restart trigger, such as a ConfigMap-data hash annotation"
+      - "If the task uses reload-based propagation, acceptance criteria must verify that the operand completes the reload after the ConfigMap changes"
     failure_class: "operand-config-propagation-failure"
     derived_from: "operand-configuration"

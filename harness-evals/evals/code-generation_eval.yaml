@@ -65,12 +65,14 @@ evals:
 
   - id: cg-eval-005
     prompt: >-
-      An API type task adds a new CRD field that references container images
-      (operand images, sidecar images, init container images). Evaluate whether
-      the generated type includes appropriate field documentation.
+      An API type generation task adds or modifies CRD fields. ZTWIM does
+      not expose container image references on CRD types — OLM injects operand
+      images via RELATED_IMAGE_* environment variables. Evaluate whether the
+      generated API avoids introducing image reference fields and keeps image
+      wiring in OLM manifests instead.
     assertions:
-      - "Image reference fields must document whether the image is expected to be multi-arch"
-      - "Fields referencing external images must include documentation about architecture requirements"
+      - "Generated CRD types must not add container image reference fields — images are resolved from RELATED_IMAGE_* env vars"
+      - "If the task touches image wiring, changes must be limited to config/manager and bundle CSV relatedImages, not CRD spec fields"
       - "Generated code must pass `make generate && make manifests && make verify`"
     failure_class: "architecture-support-gap"
     derived_from: "multi-arch-support"
@@ -107,13 +109,16 @@ evals:
   # --- manual command evals ---
   - id: cg-eval-008
     prompt: >-
-      A manifest/bindata task modifies RBAC resources (ClusterRoles, Roles,
-      RoleBindings). Evaluate whether the generated RBAC follows minimum-privilege
-      principles.
+      A manifest/bindata task modifies RBAC resources (operator manager-role
+      in config/rbac/role.yaml and/or operand ClusterRoles in bindata).
+      ZTWIM uses one kubebuilder-generated manager-role shared by all
+      reconcilers; operand ClusterRoles are defined separately per component.
+      Evaluate whether the generated RBAC follows minimum-privilege principles
+      for the scope being modified.
     assertions:
       - "RBAC must use specific verbs (get, list, watch, create, update, patch, delete) — no wildcard (*) verbs"
       - "Resources must be scoped to specific API groups and resource names — no wildcard resources"
-      - "Each controller's RBAC must be independently scoped — do not share broad ClusterRoles across controllers"
+      - "Operator manager-role and operand ClusterRoles must not be conflated — each bindata operand role must be scoped to that component's API needs"
       - "Changes must pass `make manifests && make verify`"
     failure_class: "security-constraint-gap"
     derived_from: "operand-security-configuration"
@@ -121,13 +126,14 @@ evals:
 
   - id: cg-eval-009
     prompt: >-
-      A task updates operand image references (RELATED_IMAGE environment variables,
-      CSV relatedImages entries). Evaluate whether the update includes architecture
-      validation.
+      A task updates operand image references (RELATED_IMAGE environment
+      variables in config/manager and CSV relatedImages entries). Evaluate
+      whether the update keeps wiring consistent and considers multi-arch
+      deployment requirements.
     assertions:
-      - "Image references must use digest pinning (@sha256:...) rather than mutable tags when available"
+      - "RELATED_IMAGE environment variables in config/manager must stay consistent with bundle CSV relatedImages entries"
       - "Updated image references should be validated for multi-architecture manifest availability"
-      - "CSV relatedImages must be updated to match the new image references"
+      - "All seven RELATED_IMAGE_* variables must remain defined when image wiring changes"
       - "Changes must pass `make verify` and bundle validation"
     failure_class: "architecture-support-gap"
     derived_from: "multi-arch-support"

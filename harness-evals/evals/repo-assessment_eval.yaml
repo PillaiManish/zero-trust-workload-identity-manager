@@ -19,7 +19,7 @@ evals:
 
   - id: ra-eval-002
     prompt: >-
-      An operator references five external container images via environment variables
+      An operator references seven external container images via environment variables
       in its deployment manifest. The operator is expected to run on multiple CPU
       architectures (x86_64, ARM, s390x, ppc64le). Evaluate whether the repo-assessment
       artifact enumerates all external image references and documents their architecture
@@ -34,14 +34,16 @@ evals:
 
   - id: ra-eval-003
     prompt: >-
-      An operator's controllers have ClusterRole permissions that include wildcard verbs
-      on several resources. The operator has multiple controllers, each needing different
-      subsets of API operations. Evaluate whether the repo-assessment artifact includes
-      an RBAC minimum-privilege audit.
+      An operator uses a kubebuilder-generated ClusterRole for reconcilers
+      (config/rbac/role.yaml) and separate operand ClusterRoles in bindata.
+      The operator has multiple controllers sharing the manager role, and each
+      operand component has its own RBAC requirements. Evaluate whether the
+      repo-assessment artifact documents RBAC scope separately for operator
+      vs operand roles and includes a minimum-privilege audit.
     assertions:
-      - "§10.1 or §6 Security guardrails must document RBAC permission scope for each controller"
+      - "§10.1 or §6 Security guardrails must document RBAC permission scope separately for operator reconciler role and operand ClusterRoles"
+      - "Assessment must distinguish kubebuilder manager-role permissions from operand bindata ClusterRoles"
       - "Wildcard verbs or overly broad resource grants must be flagged as risks"
-      - "Assessment must map each controller's actual API operations to its declared permissions"
       - "Over-permissioned roles must be identified with specific verbs/resources that exceed minimum requirements"
     failure_class: "security-constraint-gap"
     derived_from: "operand-security-configuration"
