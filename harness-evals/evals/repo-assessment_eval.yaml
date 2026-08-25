@@ -25,7 +25,7 @@ evals:
       artifact enumerates all external image references and documents their architecture
       availability.
     assertions:
-      - "§10.4 must enumerate all externally-referenced container images (images not built by this repo)"
+      - "§4.3 must enumerate all externally-referenced container images (images not built by this repo)"
       - "Each image reference must document its available architectures (multi-arch manifest list vs single-arch)"
       - "Single-architecture images must be flagged as critical risks for multi-arch deployment"
       - "Assessment must distinguish between images the operator builds vs images it references from upstream"

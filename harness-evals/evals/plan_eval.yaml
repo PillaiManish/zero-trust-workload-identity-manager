@@ -37,7 +37,7 @@ evals:
       logic vs framework-provided patterns). Evaluate whether the plan documents
       rejected alternatives and rationale.
     assertions:
-      - "§1 Architectural strategy must include a rejected alternatives subsection when multiple approaches exist"
+      - "§4 must include an ADR / design deviation log when multiple architectural approaches exist"
       - "Each rejected alternative must state what was considered, why it was rejected, and conditions for revisiting"
       - "Plan must not silently choose an approach without documenting the alternative landscape"
     failure_class: "architectural-decision-gap"
