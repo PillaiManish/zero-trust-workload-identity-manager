@@ -10,7 +10,7 @@ evals:
       constraint matrix that maps each component to its required security policy type,
       UID/GID, supplemental groups, capabilities, and platform policy interaction behavior.
     assertions:
-      - "§10.1 must include a per-operand security constraint matrix when multiple operands have heterogeneous privilege requirements"
+      - "Security context and permissions must include a per-operand security constraint matrix when multiple operands have heterogeneous privilege requirements"
       - "Each operand entry must specify: security policy type, required UID/GID, supplemental groups, capabilities, volume permissions"
       - "Matrix must document platform policy interaction semantics (injection vs explicit request behavior)"
       - "Matrix must identify risks from policy enforcement differences across platform versions"
@@ -25,7 +25,7 @@ evals:
       artifact enumerates all external image references and documents their architecture
       availability.
     assertions:
-      - "§4.3 must enumerate all externally-referenced container images (images not built by this repo)"
+      - "Image and dependency resolution must enumerate all externally-referenced container images (images not built by this repo)"
       - "Each image reference must document its available architectures (multi-arch manifest list vs single-arch)"
       - "Single-architecture images must be flagged as critical risks for multi-arch deployment"
       - "Assessment must distinguish between images the operator builds vs images it references from upstream"
@@ -41,7 +41,7 @@ evals:
       repo-assessment artifact documents RBAC scope separately for operator
       vs operand roles and includes a minimum-privilege audit.
     assertions:
-      - "§10.1 or §6 Security guardrails must document RBAC permission scope separately for operator reconciler role and operand ClusterRoles"
+      - "Security context, permissions, or architectural guardrails must document RBAC permission scope separately for operator reconciler role and operand ClusterRoles"
       - "Assessment must distinguish kubebuilder manager-role permissions from operand bindata ClusterRoles"
       - "Wildcard verbs or overly broad resource grants must be flagged as risks"
       - "Over-permissioned roles must be identified with specific verbs/resources that exceed minimum requirements"
@@ -56,10 +56,10 @@ evals:
       flow including conflict handling, retry behavior, and update strategy per
       workload type.
     assertions:
-      - "§4.2 must document the reconciliation/processing flow with explicit step ordering"
-      - "§4.2 must specify what happens on error at each reconciliation stage (retry, abort, degrade)"
+      - "Reconciliation and processing flow must document explicit step ordering"
+      - "Reconciliation and processing flow must specify what happens on error at each reconciliation stage (retry, abort, degrade)"
       - "Assessment must document the apply strategy for each managed workload type"
-      - "Status condition transitions on reconciliation failure must be documented in §4.4"
+      - "Status and health reporting must document status condition transitions on reconciliation failure"
     failure_class: "reconciliation-information-gap"
     derived_from: "reconciliation-safety"
 
@@ -70,8 +70,8 @@ evals:
       Evaluate whether the repo-assessment artifact tracks platform security policy
       evolution and assesses impact on operand configurations.
     assertions:
-      - "§10.1 must document platform security policy version interactions when operand security depends on platform policies"
+      - "Security context and permissions must document platform security policy version interactions when operand security depends on platform policies"
       - "Assessment must identify which platform version introduced or changed security policies affecting operands"
-      - "Forward-compatibility risks from platform security evolution must appear in §11 Risks"
+      - "Forward-compatibility risks from platform security evolution must appear in risks and downstream impacts"
     failure_class: "platform-compatibility-gap"
     derived_from: "operand-security-configuration"

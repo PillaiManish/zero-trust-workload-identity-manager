@@ -26,7 +26,7 @@ evals:
     assertions:
       - "Verification hooks must include runtime security posture verification for phases modifying security configurations"
       - "Plan must not rely solely on configuration correctness — must verify actual runtime state"
-      - "§6 Verification matrix must include a row for security posture assertion (actual UID/GID/capabilities match design)"
+      - "Verification matrix must include a row for security posture assertion (actual UID/GID/capabilities match design)"
     failure_class: "security-verification-gap"
     derived_from: "operand-security-configuration"
 
@@ -37,7 +37,7 @@ evals:
       logic vs framework-provided patterns). Evaluate whether the plan documents
       rejected alternatives and rationale.
     assertions:
-      - "§4 must include an ADR / design deviation log when multiple architectural approaches exist"
+      - "Dependencies and sequencing graph must include an ADR or design deviation log when multiple architectural approaches exist"
       - "Each rejected alternative must state what was considered, why it was rejected, and conditions for revisiting"
       - "Plan must not silently choose an approach without documenting the alternative landscape"
     failure_class: "architectural-decision-gap"
@@ -63,7 +63,7 @@ evals:
       security policies that evolve across platform versions. Evaluate whether
       the plan includes forward-compatibility planning for platform evolution.
     assertions:
-      - "§7 Risks must include platform evolution risks when the feature depends on platform-managed policies"
+      - "Risks, migrations, and operational follow-ups must include platform evolution risks when the feature depends on platform-managed policies"
       - "Plan must document forward-compatibility strategy for upcoming platform security defaults"
       - "Plan must identify which platform version boundaries affect the feature's security configuration"
     failure_class: "platform-compatibility-gap"
