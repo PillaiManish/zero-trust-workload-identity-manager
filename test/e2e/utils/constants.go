@@ -84,4 +84,9 @@ const (
 	MTLSServerAppLabel  = "federation-mtls-server"
 	MTLSClientAppLabel  = "federation-mtls-client"
 	MTLSServerRouteName = "mtls-server"
+	MTLSCombinedCAPath  = "/certs/mtls-ca.pem"
+	MTLSRemoteCAPath    = "/certs/remote-ca.pem"
+
+	// Writable on SPIRE agent pods (readOnlyRootFilesystem; /var/lib/spire is emptyDir).
+	spireAgentBundleCheckDir = "/var/lib/spire/e2e-federated-bundle-check"
 )

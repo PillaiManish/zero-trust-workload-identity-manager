@@ -18,6 +18,7 @@ package utils
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
@@ -77,11 +78,12 @@ if ! command -v openssl >/dev/null 2>&1; then
   echo "openssl not found in container image"
   exit 1
 fi
+while [ ! -f /certs/mtls-ca.pem ]; do sleep 2; done
 echo "Certs available, starting TLS server..."
 exec openssl s_server \
   -cert /certs/svid.pem \
   -key /certs/svid_key.pem \
-  -CAfile /certs/bundle.pem \
+  -CAfile /certs/mtls-ca.pem \
   -Verify 1 \
   -accept 8443 \
   -www \
@@ -498,11 +500,18 @@ func AttemptMTLSConnection(ctx context.Context, namespace, podName, serverHost s
 	cmd := []string{
 		"sh", "-c",
 		fmt.Sprintf(
-			`echo "FEDERATION-MTLS-TEST" | timeout 15 openssl s_client -connect %s:%d -cert /certs/svid.pem -key /certs/svid_key.pem -CAfile /certs/bundle.pem -verify_return_error -quiet 2>&1; echo "EXIT_CODE=$?"`,
-			serverHost, serverPort,
+			`CAFILE=%q; [ -f "$CAFILE" ] || CAFILE=/certs/bundle.pem; echo "FEDERATION-MTLS-TEST" | timeout 15 openssl s_client -connect %s:%d -cert /certs/svid.pem -key /certs/svid_key.pem -CAfile "$CAFILE" -verify_return_error -quiet 2>&1; echo "EXIT_CODE=$?"`,
+			MTLSCombinedCAPath, serverHost, serverPort,
 		),
 	}
 	return ExecInPod(ctx, namespace, podName, "tls-client", cmd)
+}
+
+// ClearMTLSCombinedCA removes federated trust material written for cross-cluster mTLS tests.
+func ClearMTLSCombinedCA(ctx context.Context, namespace, podName, containerName string) error {
+	command := []string{"sh", "-c", fmt.Sprintf("rm -f %q %q", MTLSCombinedCAPath, MTLSRemoteCAPath)}
+	_, err := execInPodCapture(ctx, namespace, podName, containerName, command)
+	return err
 }
 
 // ExecInPodOnClusterB runs a command in a pod on Cluster B by setting KUBECONFIG_CLUSTER_B.
@@ -561,56 +570,86 @@ func fetchAgentTrustBundle(ctx context.Context, clientset kubernetes.Interface, 
 	if err != nil {
 		return err
 	}
-	checkDir := "/tmp/e2e-federated-bundle-check"
 	command := []string{
 		"sh", "-c",
 		fmt.Sprintf(
 			`rm -rf %s && mkdir -p %s && /opt/spire/bin/spire-agent api fetch bundle -trustDomain %q -socketPath %q -write %s`,
-			checkDir, checkDir, trustDomain, SpireAgentWorkloadSocket, checkDir,
+			spireAgentBundleCheckDir, spireAgentBundleCheckDir, trustDomain, SpireAgentWorkloadSocket, spireAgentBundleCheckDir,
 		),
 	}
+	var output string
 	if kubeconfig == "" {
-		_, err = execInPodCapture(ctx, OperatorNamespace, podName, "spire-agent", command)
+		output, err = execInPodCapture(ctx, OperatorNamespace, podName, "spire-agent", command)
 	} else {
-		_, err = execInPodCaptureWithKubeconfig(ctx, kubeconfig, OperatorNamespace, podName, "spire-agent", command)
+		output, err = execInPodCaptureWithKubeconfig(ctx, kubeconfig, OperatorNamespace, podName, "spire-agent", command)
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(output))
+	}
+	return nil
 }
 
-// WaitForWorkloadFederatedCAs waits until spiffe-helper bundle.pem contains federated trust CAs.
-func WaitForWorkloadFederatedCAs(ctx context.Context, namespace, podName, containerName, kubeconfig, remoteTrustDomain string, timeout time.Duration) {
-	By(fmt.Sprintf("Waiting for federated CAs for %s in %s/%s bundle.pem", remoteTrustDomain, namespace, podName))
-	Eventually(func() int {
-		bundlePEM, err := readBundlePEMFromPod(ctx, namespace, podName, containerName, kubeconfig)
+// GetServerTrustBundlePEM exports a trust domain bundle from a SPIRE server pod in PEM format.
+func GetServerTrustBundlePEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig, trustDomain string) string {
+	By(fmt.Sprintf("Exporting SPIRE server trust bundle PEM for %s", trustDomain))
+	var bundle string
+	Eventually(func() error {
+		output, err := showServerTrustBundlePEM(ctx, clientset, kubeconfig, trustDomain)
 		if err != nil {
-			fmt.Fprintf(GinkgoWriter, "read bundle.pem from %s/%s failed: %v\n", namespace, podName, err)
-			return 0
+			return err
 		}
-		certs, err := ParseAllPEMCertificates(bundlePEM)
-		if err != nil {
-			fmt.Fprintf(GinkgoWriter, "parse bundle.pem from %s/%s failed: %v\n", namespace, podName, err)
-			return 0
+		if strings.TrimSpace(output) == "" {
+			return fmt.Errorf("trust bundle PEM output is empty for %s", trustDomain)
 		}
-		if len(certs) < 2 {
-			fmt.Fprintf(GinkgoWriter, "%s/%s bundle.pem has %d CA cert(s), waiting for federated bundle from %s\n",
-				namespace, podName, len(certs), remoteTrustDomain)
-		}
-		return len(certs)
-	}).WithTimeout(timeout).WithPolling(DefaultInterval).Should(BeNumerically(">=", 2),
-		"bundle.pem in %s/%s should contain local and federated CA certificates", namespace, podName)
+		bundle = output
+		return nil
+	}).WithTimeout(DefaultTimeout).WithPolling(DefaultInterval).Should(Succeed(),
+		"SPIRE server trust bundle PEM should be available for %s", trustDomain)
+	return bundle
 }
 
-func readBundlePEMFromPod(ctx context.Context, namespace, podName, containerName, kubeconfig string) (string, error) {
-	command := []string{"cat", "/certs/bundle.pem"}
+func showServerTrustBundlePEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig, trustDomain string) (string, error) {
+	podName, err := GetSpireServerPodName(ctx, clientset)
+	if err != nil {
+		return "", err
+	}
+	command := []string{
+		"/opt/spire/bin/spire-server", "bundle", "show",
+		"-trustDomain", trustDomain,
+		"-format", "pem",
+		"-socketPath", SpireServerAPISocket,
+	}
 	if kubeconfig == "" {
-		return execInPodCapture(ctx, namespace, podName, containerName, command)
+		return execInPodCapture(ctx, OperatorNamespace, podName, "spire-server", command)
 	}
-	return execInPodCaptureWithKubeconfig(ctx, kubeconfig, namespace, podName, containerName, command)
+	return execInPodCaptureWithKubeconfig(ctx, kubeconfig, OperatorNamespace, podName, "spire-server", command)
 }
 
-// WorkloadBundleCACount returns the number of CA certificates in a workload bundle.pem.
+// PrepareMTLSCombinedCA writes a combined local+federated CA file for cross-cluster mTLS.
+func PrepareMTLSCombinedCA(ctx context.Context, namespace, podName, containerName, podKubeconfig, remoteTrustDomain string, serverClientset kubernetes.Interface, serverKubeconfig string) {
+	By(fmt.Sprintf("Preparing combined CA bundle in %s/%s for remote trust domain %s", namespace, podName, remoteTrustDomain))
+	remotePEM := GetServerTrustBundlePEM(ctx, serverClientset, serverKubeconfig, remoteTrustDomain)
+	remoteB64 := base64.StdEncoding.EncodeToString([]byte(remotePEM))
+	command := []string{
+		"sh", "-c",
+		fmt.Sprintf(
+			`echo %q | base64 -d > %q && cat /certs/bundle.pem %q > %q && test -s %q`,
+			remoteB64, MTLSRemoteCAPath, MTLSRemoteCAPath, MTLSCombinedCAPath, MTLSCombinedCAPath,
+		),
+	}
+	var err error
+	if podKubeconfig == "" {
+		_, err = execInPodCapture(ctx, namespace, podName, containerName, command)
+	} else {
+		_, err = execInPodCaptureWithKubeconfig(ctx, podKubeconfig, namespace, podName, containerName, command)
+	}
+	Expect(err).NotTo(HaveOccurred(), "failed to prepare combined CA bundle in %s/%s", namespace, podName)
+}
+
+// WorkloadBundleCACount returns the number of CA certificates in a workload trust bundle file.
 func WorkloadBundleCACount(ctx context.Context, namespace, podName, containerName string) int {
-	bundlePEM, err := readBundlePEMFromPod(ctx, namespace, podName, containerName, "")
+	command := []string{"sh", "-c", fmt.Sprintf(`if [ -f %q ]; then cat %q; else cat /certs/bundle.pem; fi`, MTLSCombinedCAPath, MTLSCombinedCAPath)}
+	bundlePEM, err := execInPodCapture(ctx, namespace, podName, containerName, command)
 	if err != nil {
 		return 0
 	}
