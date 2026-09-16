@@ -338,13 +338,21 @@ func GetServerLocalTrustBundle(ctx context.Context, clientset kubernetes.Interfa
 }
 
 func showServerLocalTrustBundle(ctx context.Context, clientset kubernetes.Interface, kubeconfig string) (string, error) {
+	return showServerTrustBundle(ctx, clientset, kubeconfig, "spiffe")
+}
+
+func showServerLocalTrustBundlePEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig string) (string, error) {
+	return showServerTrustBundle(ctx, clientset, kubeconfig, "pem")
+}
+
+func showServerTrustBundle(ctx context.Context, clientset kubernetes.Interface, kubeconfig, format string) (string, error) {
 	podName, err := GetSpireServerPodName(ctx, clientset)
 	if err != nil {
 		return "", err
 	}
 	command := []string{
 		"/opt/spire/bin/spire-server", "bundle", "show",
-		"-format", "spiffe",
+		"-format", format,
 		"-socketPath", SpireServerAPISocket,
 	}
 	if kubeconfig == "" {
@@ -543,14 +551,27 @@ func WaitForSVIDsReady(ctx context.Context, namespace, podName, containerName st
 }
 
 // GetServerAllTrustBundlesPEM exports local and federated trust bundles from a SPIRE server in PEM format.
+// bundle show returns the local trust domain bundle; bundle list returns federated bundles only.
 func GetServerAllTrustBundlesPEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig string) string {
 	By("Exporting SPIRE server trust bundles (local + federated) in PEM format")
 	var bundle string
 	Eventually(func() error {
-		output, err := listServerTrustBundlesPEM(ctx, clientset, kubeconfig)
+		localPEM, err := showServerLocalTrustBundlePEM(ctx, clientset, kubeconfig)
 		if err != nil {
 			return err
 		}
+		federatedPEM, err := listServerTrustBundlesPEM(ctx, clientset, kubeconfig)
+		if err != nil {
+			return err
+		}
+
+		var combined strings.Builder
+		combined.WriteString(strings.TrimSpace(localPEM))
+		if federated := strings.TrimSpace(federatedPEM); federated != "" {
+			combined.WriteString("\n")
+			combined.WriteString(federated)
+		}
+		output := combined.String()
 		if strings.TrimSpace(output) == "" {
 			return fmt.Errorf("trust bundle PEM output is empty")
 		}
