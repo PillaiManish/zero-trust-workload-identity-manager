@@ -291,7 +291,7 @@ var _ = Describe("Federation SDS E2E", Label("federation", "sds"), Ordered, func
 			utils.WaitForPodReady(testCtx, clientsetB, utils.MTLSServerPodName, utils.MTLSTestNamespaceB, utils.DefaultTimeout)
 			utils.WaitForSVIDsReadyOnClusterB(testCtx, utils.MTLSTestNamespaceB, utils.MTLSServerPodName, "tls-server", utils.DefaultTimeout)
 			utils.PrepareMTLSCombinedCA(testCtx, utils.MTLSTestNamespaceB, utils.MTLSServerPodName, "tls-server",
-				os.Getenv("KUBECONFIG_CLUSTER_B"), trustDomainA, clientsetB, os.Getenv("KUBECONFIG_CLUSTER_B"))
+				os.Getenv("KUBECONFIG_CLUSTER_B"), clientsetB, os.Getenv("KUBECONFIG_CLUSTER_B"))
 
 			By("Creating a Service for the mTLS server on Cluster B")
 			svc := &corev1.Service{
@@ -343,7 +343,7 @@ var _ = Describe("Federation SDS E2E", Label("federation", "sds"), Ordered, func
 			utils.WaitForPodReady(testCtx, clientset, utils.MTLSClientPodName, utils.MTLSTestNamespaceA, utils.DefaultTimeout)
 			utils.WaitForSVIDsReady(testCtx, utils.MTLSTestNamespaceA, utils.MTLSClientPodName, "tls-client", utils.DefaultTimeout)
 			utils.PrepareMTLSCombinedCA(testCtx, utils.MTLSTestNamespaceA, utils.MTLSClientPodName, "tls-client",
-				"", trustDomainB, clientset, "")
+				"", clientset, "")
 		})
 
 		It("establishes cross-cluster mTLS between client and server", func() {

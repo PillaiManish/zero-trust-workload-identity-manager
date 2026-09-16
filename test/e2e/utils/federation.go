@@ -542,33 +542,39 @@ func WaitForSVIDsReady(ctx context.Context, namespace, podName, containerName st
 		), "SVID files should appear in /certs/ of %s/%s", namespace, podName)
 }
 
-// GetServerTrustBundlePEM exports a trust domain bundle from a SPIRE server pod in PEM format.
-func GetServerTrustBundlePEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig, trustDomain string) string {
-	By(fmt.Sprintf("Exporting SPIRE server trust bundle PEM for %s", trustDomain))
+// GetServerAllTrustBundlesPEM exports local and federated trust bundles from a SPIRE server in PEM format.
+func GetServerAllTrustBundlesPEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig string) string {
+	By("Exporting SPIRE server trust bundles (local + federated) in PEM format")
 	var bundle string
 	Eventually(func() error {
-		output, err := showServerTrustBundlePEM(ctx, clientset, kubeconfig, trustDomain)
+		output, err := listServerTrustBundlesPEM(ctx, clientset, kubeconfig)
 		if err != nil {
 			return err
 		}
 		if strings.TrimSpace(output) == "" {
-			return fmt.Errorf("trust bundle PEM output is empty for %s", trustDomain)
+			return fmt.Errorf("trust bundle PEM output is empty")
+		}
+		certs, err := ParseAllPEMCertificates(output)
+		if err != nil {
+			return fmt.Errorf("trust bundle PEM is not parseable: %w", err)
+		}
+		if len(certs) < 2 {
+			return fmt.Errorf("expected local and federated CA certificates, got %d", len(certs))
 		}
 		bundle = output
 		return nil
 	}).WithTimeout(DefaultTimeout).WithPolling(DefaultInterval).Should(Succeed(),
-		"SPIRE server trust bundle PEM should be available for %s", trustDomain)
+		"SPIRE server should expose local and federated trust bundles in PEM format")
 	return bundle
 }
 
-func showServerTrustBundlePEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig, trustDomain string) (string, error) {
+func listServerTrustBundlesPEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig string) (string, error) {
 	podName, err := GetSpireServerPodName(ctx, clientset)
 	if err != nil {
 		return "", err
 	}
 	command := []string{
-		"/opt/spire/bin/spire-server", "bundle", "show",
-		"-trustDomain", trustDomain,
+		"/opt/spire/bin/spire-server", "bundle", "list",
 		"-format", "pem",
 		"-socketPath", SpireServerAPISocket,
 	}
@@ -578,16 +584,16 @@ func showServerTrustBundlePEM(ctx context.Context, clientset kubernetes.Interfac
 	return execInPodCaptureWithKubeconfig(ctx, kubeconfig, OperatorNamespace, podName, "spire-server", command)
 }
 
-// PrepareMTLSCombinedCA writes a combined local+federated CA file for cross-cluster mTLS.
-func PrepareMTLSCombinedCA(ctx context.Context, namespace, podName, containerName, podKubeconfig, remoteTrustDomain string, serverClientset kubernetes.Interface, serverKubeconfig string) {
-	By(fmt.Sprintf("Preparing combined CA bundle in %s/%s for remote trust domain %s", namespace, podName, remoteTrustDomain))
-	remotePEM := GetServerTrustBundlePEM(ctx, serverClientset, serverKubeconfig, remoteTrustDomain)
-	remoteB64 := base64.StdEncoding.EncodeToString([]byte(remotePEM))
+// PrepareMTLSCombinedCA writes a CA file containing local and federated trust bundles for cross-cluster mTLS.
+func PrepareMTLSCombinedCA(ctx context.Context, namespace, podName, containerName, podKubeconfig string, serverClientset kubernetes.Interface, serverKubeconfig string) {
+	By(fmt.Sprintf("Preparing combined CA bundle in %s/%s from SPIRE server trust bundles", namespace, podName))
+	allBundlesPEM := GetServerAllTrustBundlesPEM(ctx, serverClientset, serverKubeconfig)
+	bundleB64 := base64.StdEncoding.EncodeToString([]byte(allBundlesPEM))
 	command := []string{
 		"sh", "-c",
 		fmt.Sprintf(
-			`echo %q | base64 -d > %q && cat /certs/bundle.pem %q > %q && test -s %q`,
-			remoteB64, MTLSRemoteCAPath, MTLSRemoteCAPath, MTLSCombinedCAPath, MTLSCombinedCAPath,
+			`echo %q | base64 -d > %q && test -s %q`,
+			bundleB64, MTLSCombinedCAPath, MTLSCombinedCAPath,
 		),
 	}
 	var err error
