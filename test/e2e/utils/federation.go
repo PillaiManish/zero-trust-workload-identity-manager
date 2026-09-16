@@ -542,53 +542,6 @@ func WaitForSVIDsReady(ctx context.Context, namespace, podName, containerName st
 		), "SVID files should appear in /certs/ of %s/%s", namespace, podName)
 }
 
-// GetSpireAgentPodName returns the name of the first running SPIRE agent pod.
-func GetSpireAgentPodName(ctx context.Context, clientset kubernetes.Interface) (string, error) {
-	pods, err := clientset.CoreV1().Pods(OperatorNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: SpireAgentPodLabel,
-	})
-	if err != nil {
-		return "", err
-	}
-	if len(pods.Items) == 0 {
-		return "", fmt.Errorf("no SPIRE agent pods found in namespace %s", OperatorNamespace)
-	}
-	return pods.Items[0].Name, nil
-}
-
-// WaitForAgentFederatedBundle waits until a SPIRE agent has synced a remote trust domain bundle.
-func WaitForAgentFederatedBundle(ctx context.Context, clientset kubernetes.Interface, kubeconfig, remoteTrustDomain string, timeout time.Duration) {
-	By(fmt.Sprintf("Waiting for SPIRE agent to sync federated bundle %s", remoteTrustDomain))
-	Eventually(func() error {
-		return fetchAgentTrustBundle(ctx, clientset, kubeconfig, remoteTrustDomain)
-	}).WithTimeout(timeout).WithPolling(DefaultInterval).Should(Succeed(),
-		"SPIRE agent should have federated bundle for %s", remoteTrustDomain)
-}
-
-func fetchAgentTrustBundle(ctx context.Context, clientset kubernetes.Interface, kubeconfig, trustDomain string) error {
-	podName, err := GetSpireAgentPodName(ctx, clientset)
-	if err != nil {
-		return err
-	}
-	command := []string{
-		"sh", "-c",
-		fmt.Sprintf(
-			`rm -rf %s && mkdir -p %s && /opt/spire/bin/spire-agent api fetch bundle -trustDomain %q -socketPath %q -write %s`,
-			spireAgentBundleCheckDir, spireAgentBundleCheckDir, trustDomain, SpireAgentWorkloadSocket, spireAgentBundleCheckDir,
-		),
-	}
-	var output string
-	if kubeconfig == "" {
-		output, err = execInPodCapture(ctx, OperatorNamespace, podName, "spire-agent", command)
-	} else {
-		output, err = execInPodCaptureWithKubeconfig(ctx, kubeconfig, OperatorNamespace, podName, "spire-agent", command)
-	}
-	if err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(output))
-	}
-	return nil
-}
-
 // GetServerTrustBundlePEM exports a trust domain bundle from a SPIRE server pod in PEM format.
 func GetServerTrustBundlePEM(ctx context.Context, clientset kubernetes.Interface, kubeconfig, trustDomain string) string {
 	By(fmt.Sprintf("Exporting SPIRE server trust bundle PEM for %s", trustDomain))

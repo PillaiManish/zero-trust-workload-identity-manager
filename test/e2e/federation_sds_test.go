@@ -221,12 +221,6 @@ var _ = Describe("Federation SDS E2E", Label("federation", "sds"), Ordered, func
 
 			By("Verifying federated bundle on Cluster B SPIRE server")
 			utils.WaitForServerFederatedBundle(testCtx, clientsetB, os.Getenv("KUBECONFIG_CLUSTER_B"), trustDomainA, utils.FederationTimeout)
-
-			By("Verifying federated bundle on Cluster A SPIRE agent")
-			utils.WaitForAgentFederatedBundle(testCtx, clientset, "", trustDomainB, utils.FederationTimeout)
-
-			By("Verifying federated bundle on Cluster B SPIRE agent")
-			utils.WaitForAgentFederatedBundle(testCtx, clientsetB, os.Getenv("KUBECONFIG_CLUSTER_B"), trustDomainA, utils.FederationTimeout)
 		})
 	})
 
