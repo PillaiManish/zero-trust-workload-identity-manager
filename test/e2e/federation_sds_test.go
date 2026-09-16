@@ -377,22 +377,12 @@ var _ = Describe("Federation SDS E2E", Label("federation", "sds"), Ordered, func
 		})
 
 		It("mTLS fails when federated trust is removed (negative control)", func() {
-			By("Deleting ClusterFederatedTrustDomain on Cluster A")
-			cftd := &spiffev1alpha1.ClusterFederatedTrustDomain{
-				ObjectMeta: metav1.ObjectMeta{Name: "federation-cluster-b"},
-			}
-			Expect(k8sClient.Delete(testCtx, cftd)).To(Succeed(),
-				"failed to delete ClusterFederatedTrustDomain on Cluster A")
-
-			By("Waiting for trust bundle to expire/refresh")
-			time.Sleep(utils.FederationBundlePropagation)
-
 			By("Removing combined federated CA from client workload")
 			Expect(utils.ClearMTLSCombinedCA(testCtx, utils.MTLSTestNamespaceA, utils.MTLSClientPodName, "tls-client")).To(Succeed())
 
 			By("Attempting mTLS connection (should fail without federated trust)")
-			// After removing the trust domain, the client should no longer trust
-			// the server's certificate from Cluster B
+			// Without mtls-ca.pem the client falls back to bundle.pem, which only
+			// contains the local trust domain CA and cannot verify Cluster B certs.
 			Eventually(func() bool {
 				stdout, _, err := utils.AttemptMTLSConnection(
 					testCtx,
@@ -406,18 +396,17 @@ var _ = Describe("Federation SDS E2E", Label("federation", "sds"), Ordered, func
 					return true
 				}
 				if strings.Contains(stdout, "verify error") || strings.Contains(stdout, "EXIT_CODE=1") {
-					fmt.Fprintf(GinkgoWriter, "[EXPECTED] TLS verification error (federation removed): %s\n", stdout)
+					fmt.Fprintf(GinkgoWriter, "[EXPECTED] TLS verification error (federated CA removed): %s\n", stdout)
 					return true
 				}
-				fmt.Fprintf(GinkgoWriter, "mTLS still succeeding unexpectedly, waiting for bundle expiry...\n")
+				fmt.Fprintf(GinkgoWriter, "mTLS still succeeding unexpectedly: %s\n", stdout)
 				return false
 			}).WithTimeout(utils.FederationTimeout).WithPolling(30*time.Second).Should(BeTrue(),
-				"mTLS should fail after federated trust is removed")
+				"mTLS should fail when client only trusts the local CA")
 
-			By("Re-creating ClusterFederatedTrustDomain to restore state")
-			cftdRestore := utils.NewFederationClusterFederatedTrustDomain(
-				"federation-cluster-b", trustDomainB, bundleRouteB, bootstrapBundleB)
-			Expect(k8sClient.Create(testCtx, cftdRestore)).To(Succeed())
+			By("Restoring combined CA bundle on client")
+			utils.PrepareMTLSCombinedCA(testCtx, utils.MTLSTestNamespaceA, utils.MTLSClientPodName, "tls-client",
+				"", clientset, "")
 		})
 	})
 })
