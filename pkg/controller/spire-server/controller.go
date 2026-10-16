@@ -14,6 +14,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/go-logr/logr"
 
+	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
 	customClient "github.com/openshift/zero-trust-workload-identity-manager/pkg/client"
@@ -56,10 +58,11 @@ type SpireServerReconciler struct {
 	eventRecorder record.EventRecorder
 	log           logr.Logger
 	scheme        *runtime.Scheme
+	tlsProfileSpec *configv1.TLSProfileSpec
 }
 
 // New returns a new Reconciler instance.
-func New(mgr ctrl.Manager) (*SpireServerReconciler, error) {
+func New(mgr ctrl.Manager, tlsProfileSpec *configv1.TLSProfileSpec) (*SpireServerReconciler, error) {
 	c, err := customClient.NewCustomClient(mgr)
 	if err != nil {
 		return nil, err
@@ -70,6 +73,7 @@ func New(mgr ctrl.Manager) (*SpireServerReconciler, error) {
 		eventRecorder: mgr.GetEventRecorderFor(utils.ZeroTrustWorkloadIdentityManagerSpireServerControllerName),
 		log:           ctrl.Log.WithName(utils.ZeroTrustWorkloadIdentityManagerSpireServerControllerName),
 		scheme:        mgr.GetScheme(),
+		tlsProfileSpec: tlsProfileSpec,
 	}, nil
 }
 
@@ -98,7 +102,7 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if kerrors.IsNotFound(err) {
 			r.log.Error(err, "failed to get ZeroTrustWorkloadIdentityManager")
 			statusMgr.AddCondition(v1alpha1.Ready, v1alpha1.ReasonFailed,
-				fmt.Sprintf("Failed to retrieve ZeroTrustWorkloadIdentityManager from cluster"),
+				"Failed to retrieve ZeroTrustWorkloadIdentityManager from cluster",
 				metav1.ConditionFalse)
 			return ctrl.Result{}, nil
 		}
@@ -159,13 +163,13 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Reconcile ConfigMaps
-	spireServerConfigMapHash, err := r.reconcileSpireServerConfigMap(ctx, &server, statusMgr, &ztwim, createOnlyMode)
+	spireServerConfigMapHash, err := r.reconcileSpireServerConfigMap(ctx, &server, statusMgr, &ztwim, r.tlsProfileSpec, createOnlyMode)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Reconcile Spire Controller Manager ConfigMap
-	spireControllerManagerConfigMapHash, err := r.reconcileSpireControllerManagerConfigMap(ctx, &server, statusMgr, &ztwim, createOnlyMode)
+	spireControllerManagerConfigMapHash, err := r.reconcileSpireControllerManagerConfigMap(ctx, &server, statusMgr, &ztwim, r.tlsProfileSpec, createOnlyMode)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -182,6 +186,10 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// reconcile Route if enabled
 	if err := r.reconcileRoute(ctx, &server, statusMgr, &ztwim, createOnlyMode); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileNetworkPolicies(ctx, &server, statusMgr, createOnlyMode); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -217,6 +225,7 @@ func (r *SpireServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&admissionregistrationv1.ValidatingWebhookConfiguration{}, handler.EnqueueRequestsFromMapFunc(mapFunc), controllerManagedResourcePredicates).
 		Watches(&v1alpha1.ZeroTrustWorkloadIdentityManager{}, handler.EnqueueRequestsFromMapFunc(mapFunc), builder.WithPredicates(utils.ZTWIMSpecChangedPredicate)).
 		Watches(&routev1.Route{}, handler.EnqueueRequestsFromMapFunc(mapFunc), controllerManagedResourcePredicates).
+		Watches(&networkingv1.NetworkPolicy{}, handler.EnqueueRequestsFromMapFunc(mapFunc), controllerManagedResourcePredicates).
 		Complete(r)
 	if err != nil {
 		return err
