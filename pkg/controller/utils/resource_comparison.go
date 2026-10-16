@@ -6,6 +6,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 
@@ -38,6 +39,8 @@ func ResourceNeedsUpdate(existing, desired client.Object) bool {
 	// Type-specific comparison
 	var typeSpecificResult bool
 	switch existingTyped := existing.(type) {
+	case *networkingv1.NetworkPolicy:
+		typeSpecificResult = NetworkPolicyNeedsUpdate(existingTyped, desired.(*networkingv1.NetworkPolicy))
 	case *corev1.Service:
 		typeSpecificResult = ServiceNeedsUpdate(existingTyped, desired.(*corev1.Service))
 	case *corev1.ServiceAccount:
@@ -107,6 +110,11 @@ func AnnotationsMatch(existing, desired map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// NetworkPolicyNeedsUpdate checks if a NetworkPolicy needs updating.
+func NetworkPolicyNeedsUpdate(existing, desired *networkingv1.NetworkPolicy) bool {
+	return !equality.Semantic.DeepEqual(existing.Spec, desired.Spec)
 }
 
 // ServiceNeedsUpdate checks if a Service needs updating
@@ -621,6 +629,7 @@ func StatefulSetNeedsUpdate(fetched, desired *appsv1.StatefulSet) bool {
 	}
 
 	for _, key := range []string{
+		securityv1.RequiredSCCAnnotation,
 		"kubectl.kubernetes.io/default-container",
 		"ztwim.openshift.io/spire-server-config-hash",
 		"ztwim.openshift.io/spire-controller-manager-config-hash",
@@ -737,6 +746,9 @@ func DeploymentNeedsUpdate(fetched, desired *appsv1.Deployment) bool {
 		return true
 	}
 	if !equality.Semantic.DeepEqual(ds.Template.Labels, fs.Template.Labels) {
+		return true
+	}
+	if ds.Template.Annotations[securityv1.RequiredSCCAnnotation] != fs.Template.Annotations[securityv1.RequiredSCCAnnotation] {
 		return true
 	}
 	dPod := ds.Template.Spec
