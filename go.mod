@@ -11,6 +11,8 @@ require (
 	github.com/onsi/gomega v1.42.1
 	github.com/openshift/api v0.0.0-20260715165912-72066cc9718b
 	github.com/openshift/build-machinery-go v0.0.0-20250530140348-dc5b2804eeee
+	github.com/openshift/controller-runtime-common v0.0.0-20260804161605-f9e4228f21e6
+	github.com/openshift/library-go v0.0.0-20260720185249-0595e37fe20f
 	github.com/operator-framework/api v0.27.0
 	github.com/spiffe/spire-controller-manager v0.7.0
 	github.com/stretchr/testify v1.11.1
