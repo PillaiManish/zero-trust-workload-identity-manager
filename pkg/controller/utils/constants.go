@@ -40,6 +40,17 @@ const (
 	SpireOIDCDiscoveryProviderServiceAccountAssetName = "spire-oidc-discovery-provider/spire-oidc-discovery-provider-service-account.yaml"
 	SpireServerServiceAccountAssetName                = "spire-server/spire-server-service-account.yaml"
 
+	SpireServerNetworkPolicyIngressAssetName           = "spire-server/ztwim-sys-spire-server-ingress.yaml"
+	SpireServerNetworkPolicyEgressAllowAllAssetName    = "spire-server/ztwim-sys-spire-server-egress-allow-all.yaml"
+	SpireServerNetworkPolicyEgressAllowAllName         = "ztwim-sys-spire-server-egress-allow-all"
+	SpireServerNetworkPolicyFederationIngressAssetName = "spire-server/ztwim-sys-spire-server-federation-ingress.yaml"
+
+	SpireAgentNetworkPolicyIngressAssetName        = "spire-agent/ztwim-sys-spire-agent-ingress.yaml"
+	SpireAgentNetworkPolicyEgressAllowAllAssetName = "spire-agent/ztwim-sys-spire-agent-egress-allow-all.yaml"
+	SpireAgentNetworkPolicyEgressAllowAllName      = "ztwim-sys-spire-agent-egress-allow-all"
+
+	SpireOIDCDiscoveryProviderNetworkPolicyIngressAssetName = "spire-oidc-discovery-provider/ztwim-sys-spire-oidc-discovery-provider-ingress.yaml"
+
 	// Service
 	SpireOIDCDiscoveryProviderServiceAssetName    = "spire-oidc-discovery-provider/spire-oidc-discovery-provider-service.yaml"
 	SpireServerServiceAssetName                   = "spire-server/spire-server-service.yaml"
@@ -88,6 +99,7 @@ const (
 	SpireAgentConfigKey             = "agent.conf"
 	SpireServerConfigKey            = "server.conf"
 	SpireControllerManagerConfigKey = "controller-manager-config.yaml"
+	TLSConfigKey                    = "tls_config"
 
 	// Default Kubelet CA Paths (for OpenShift clusters)
 	// These are used as defaults for 'auto' mode when no explicit paths are provided.
@@ -101,5 +113,6 @@ const (
 	SpireServerExternalCertRoleBindingName = "spire-server-external-cert-reader"
 
 	//Security Context Constraints
-	PrivilegedSCCName = "privileged"
+	PrivilegedSCCName   = "privileged"
+	RestrictedV2SCCName = "restricted-v2"
 )
