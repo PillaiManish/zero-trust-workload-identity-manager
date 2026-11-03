@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 1.1.0
+VERSION ?= 1.2.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -126,10 +126,19 @@ test: manifests generate fmt vet envtest ## Run tests.
 	OPERATOR_NAMESPACE=zero-trust-workload-identity-manager KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
-E2E_TIMEOUT ?= 45m
+E2E_TIMEOUT ?= 90m
+E2E_TEST_FLAGS ?= -v
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
-	OPERATOR_NAMESPACE=zero-trust-workload-identity-manager go test ./test/e2e/ -v -timeout $(E2E_TIMEOUT)
+	OPERATOR_NAMESPACE=zero-trust-workload-identity-manager go test ./test/e2e/ $(E2E_TEST_FLAGS) -timeout $(E2E_TIMEOUT)
+
+.PHONY: test-e2e-postgres test-e2e-mysql test-e2e-vault
+test-e2e-postgres: ## Run external Postgres datastore e2e (label datastore-postgres).
+	OPERATOR_NAMESPACE=zero-trust-workload-identity-manager go test ./test/e2e/ $(E2E_TEST_FLAGS) -timeout $(E2E_TIMEOUT) -ginkgo.label-filter=datastore-postgres
+test-e2e-mysql: ## Run external MySQL datastore e2e (label datastore-mysql).
+	OPERATOR_NAMESPACE=zero-trust-workload-identity-manager go test ./test/e2e/ $(E2E_TEST_FLAGS) -timeout $(E2E_TIMEOUT) -ginkgo.label-filter=datastore-mysql
+test-e2e-vault: ## Run Vault UpstreamAuthority e2e (label upstream-vault).
+	OPERATOR_NAMESPACE=zero-trust-workload-identity-manager go test ./test/e2e/ $(E2E_TEST_FLAGS) -timeout $(E2E_TIMEOUT) -ginkgo.label-filter=upstream-vault
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter

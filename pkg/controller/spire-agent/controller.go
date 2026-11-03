@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	configv1 "github.com/openshift/api/config/v1"
 	securityv1 "github.com/openshift/api/security/v1"
 	customClient "github.com/openshift/zero-trust-workload-identity-manager/pkg/client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -52,10 +54,11 @@ type SpireAgentReconciler struct {
 	eventRecorder record.EventRecorder
 	log           logr.Logger
 	scheme        *runtime.Scheme
+	tlsProfileSpec *configv1.TLSProfileSpec
 }
 
 // New returns a new Reconciler instance.
-func New(mgr ctrl.Manager) (*SpireAgentReconciler, error) {
+func New(mgr ctrl.Manager, tlsProfileSpec *configv1.TLSProfileSpec) (*SpireAgentReconciler, error) {
 	c, err := customClient.NewCustomClient(mgr)
 	if err != nil {
 		return nil, err
@@ -66,6 +69,7 @@ func New(mgr ctrl.Manager) (*SpireAgentReconciler, error) {
 		eventRecorder: mgr.GetEventRecorderFor(utils.ZeroTrustWorkloadIdentityManagerSpireAgentControllerName),
 		log:           ctrl.Log.WithName(utils.ZeroTrustWorkloadIdentityManagerSpireAgentControllerName),
 		scheme:        mgr.GetScheme(),
+		tlsProfileSpec: tlsProfileSpec,
 	}, nil
 }
 
@@ -148,13 +152,17 @@ func (r *SpireAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Reconcile ConfigMap
-	configHash, err := r.reconcileConfigMap(ctx, &agent, statusMgr, &ztwim, createOnlyMode)
+	configHash, err := r.reconcileConfigMap(ctx, &agent, statusMgr, &ztwim, r.tlsProfileSpec, createOnlyMode)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Reconcile DaemonSet
 	if err := r.reconcileDaemonSet(ctx, &agent, statusMgr, &ztwim, createOnlyMode, configHash); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileNetworkPolicies(ctx, &agent, statusMgr, createOnlyMode); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -187,6 +195,7 @@ func (r *SpireAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&rbacv1.ClusterRoleBinding{}, handler.EnqueueRequestsFromMapFunc(mapFunc), controllerManagedResourcePredicates).
 		Watches(&securityv1.SecurityContextConstraints{}, handler.EnqueueRequestsFromMapFunc(mapFunc), controllerManagedResourcePredicates).
 		Watches(&v1alpha1.ZeroTrustWorkloadIdentityManager{}, handler.EnqueueRequestsFromMapFunc(mapFunc), builder.WithPredicates(utils.ZTWIMSpecChangedPredicate)).
+		Watches(&networkingv1.NetworkPolicy{}, handler.EnqueueRequestsFromMapFunc(mapFunc), controllerManagedResourcePredicates).
 		Complete(r)
 	if err != nil {
 		return err
