@@ -10,6 +10,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	securityv1 "github.com/openshift/api/security/v1"
+	"github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
 	spiffev1alpha1 "github.com/spiffe/spire-controller-manager/api/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,8 +19,10 @@ import (
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -43,6 +46,7 @@ const (
 func init() {
 	// Register core, storage and rbac schemes
 	_ = corev1.AddToScheme(scheme)
+	_ = networkingv1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
 	_ = storagev1.AddToScheme(scheme)
 	_ = admissionregistrationv1.AddToScheme(scheme)
@@ -96,6 +100,53 @@ func DecodeRoleBindingObjBytes(objBytes []byte) *rbacv1.RoleBinding {
 		panic(err)
 	}
 	return obj.(*rbacv1.RoleBinding)
+}
+
+func DecodeNetworkPolicyObjBytes(objBytes []byte) *networkingv1.NetworkPolicy {
+	obj, err := runtime.Decode(codecs.UniversalDecoder(networkingv1.SchemeGroupVersion), objBytes)
+	if err != nil {
+		panic(err)
+	}
+	return obj.(*networkingv1.NetworkPolicy)
+}
+
+func ManagedNetworkPolicyEnabled(value string) bool {
+	return value != "false"
+}
+
+// NetworkPolicyStatusWith builds operand NetworkPolicy status from the policies recorded so far.
+func NetworkPolicyStatusWith(state v1alpha1.NetworkPolicyManagementState, applied []v1alpha1.AppliedNetworkPolicy) *v1alpha1.NetworkPolicyStatus {
+	return &v1alpha1.NetworkPolicyStatus{
+		ManagementState:     state,
+		LastAppliedPolicies: applied,
+	}
+}
+
+// BaselineNetworkPolicyLastApplied copies the operand's recorded last-applied policies
+// so read-only reconcile passes (create-only skip, no-op) do not drop prior entries or timestamps.
+func BaselineNetworkPolicyLastApplied(status *v1alpha1.NetworkPolicyStatus, capacity int) []v1alpha1.AppliedNetworkPolicy {
+	applied := make([]v1alpha1.AppliedNetworkPolicy, 0, capacity)
+	if status == nil {
+		return applied
+	}
+	applied = append(applied, status.LastAppliedPolicies...)
+	return applied
+}
+
+// RecordNetworkPolicyApplied records a NetworkPolicy in lastAppliedPolicies.
+// If the name is missing it is appended with at. If the name is present and refresh
+// is true (create/update), lastAppliedTime is replaced with at. If refresh is false
+// (object already exists and matches), the existing timestamp is left unchanged.
+func RecordNetworkPolicyApplied(applied []v1alpha1.AppliedNetworkPolicy, name string, at metav1.Time, refresh bool) []v1alpha1.AppliedNetworkPolicy {
+	for i, existing := range applied {
+		if existing.Name == name {
+			if refresh {
+				applied[i].LastAppliedTime = at
+			}
+			return applied
+		}
+	}
+	return append(applied, v1alpha1.AppliedNetworkPolicy{Name: name, LastAppliedTime: at})
 }
 
 func DecodeServiceObjBytes(objBytes []byte) *corev1.Service {
@@ -334,6 +385,11 @@ func NeedsOwnerReferenceUpdate(obj client.Object, expectedOwner client.Object) b
 
 	// Expected owner not found or mismatched, update is needed
 	return true
+}
+
+// OperandManagedResourceNeedsUpdate is true when spec/labels differ or the operand controller ref is missing or wrong.
+func OperandManagedResourceNeedsUpdate(existing, desired, owner client.Object) bool {
+	return ResourceNeedsUpdate(existing, desired) || NeedsOwnerReferenceUpdate(existing, owner)
 }
 
 // GenerationOrOwnerReferenceChangedPredicate triggers reconciliation when either:
